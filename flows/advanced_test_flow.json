@@ -1,0 +1,104 @@
+{
+  "name": "Kafka Message Processor Advanced",
+  "description": "Продвинутый flow для обработки сообщений из Kafka с использованием LLM",
+  "data": {
+    "nodes": [
+      {
+        "id": "chat_input_1",
+        "type": "ChatInput",
+        "position": {
+          "x": 100,
+          "y": 200
+        },
+        "data": {
+          "type": "ChatInput",
+          "node": {
+            "template": {
+              "input_value": {
+                "type": "str",
+                "required": true,
+                "placeholder": "Сообщение из Kafka",
+                "value": "",
+                "name": "input_value",
+                "display_name": "Input"
+              }
+            },
+            "display_name": "Chat Input",
+            "description": "Входное сообщение"
+          }
+        }
+      },
+      {
+        "id": "prompt_1",
+        "type": "Prompt",
+        "position": {
+          "x": 300,
+          "y": 200
+        },
+        "data": {
+          "type": "Prompt",
+          "node": {
+            "template": {
+              "template": {
+                "type": "str",
+                "required": true,
+                "value": "Обработай следующее сообщение из Kafka и верни результат:\n{input_value}",
+                "name": "template",
+                "display_name": "Template"
+              },
+              "input_value": {
+                "type": "str",
+                "required": false,
+                "value": "",
+                "name": "input_value",
+                "display_name": "Input Value"
+              }
+            },
+            "display_name": "Prompt",
+            "description": "Шаблон для обработки сообщения"
+          }
+        }
+      },
+      {
+        "id": "text_output_1",
+        "type": "TextOutput",
+        "position": {
+          "x": 700,
+          "y": 200
+        },
+        "data": {
+          "type": "TextOutput",
+          "node": {
+            "template": {
+              "input_value": {
+                "type": "str",
+                "required": true,
+                "value": "",
+                "name": "input_value",
+                "display_name": "Input"
+              }
+            },
+            "display_name": "Text Output",
+            "description": "Результат обработки"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_chat_input_1_prompt_1",
+        "source": "chat_input_1",
+        "target": "prompt_1",
+        "sourceHandle": "output",
+        "targetHandle": "input_value"
+      },
+      {
+        "id": "edge_prompt_1_text_output_1",
+        "source": "prompt_1",
+        "target": "text_output_1",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      }
+    ]
+  }
+}
