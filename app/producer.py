@@ -37,7 +37,7 @@ def delivery_report(err: Optional[Exception], msg) -> None:
         print(f"Delivery failed for {msg.key()}: {err}")
     else:
         print(
-            f"Delivered to {msg.topic()} [{msg.partition()}] @ offset {msg.offset()}"
+            f"Delivered to {msg.topic()} [{msg.partition()}] @ offset {msg.offset()} | message_value={msg.value().decode('utf-8') if msg.value() else ''}"
         )
 
 

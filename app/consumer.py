@@ -81,9 +81,15 @@ class LangflowClient:
         # Langflow API endpoint для запуска flow
         url = f"{self.base_url}/api/v1/run/{self.flow_id}"
 
+        # Langflow ChatInput ожидает строку. Если пришёл dict, преобразуем в строку.
+        if isinstance(input_data, dict):
+            input_value = input_data.get("message", json.dumps(input_data, ensure_ascii=False))
+        else:
+            input_value = str(input_data)
+
         # Подготовка данных для запроса
         payload = {
-            "input_value": input_data,
+            "input_value": input_value,
             "output_type": "chat",
             "input_type": "chat",
         }
@@ -146,6 +152,26 @@ class KafkaLangflowConsumer:
         self._semaphore = asyncio.Semaphore(max_concurrent_requests)
         self._consumer: Optional[AIOKafkaConsumer] = None
 
+    @staticmethod
+    def _extract_langflow_message(result: dict) -> Optional[str]:
+        """
+        Достаёт текст сообщения из структуры Langflow:
+        result["outputs"][0]["outputs"][0]["messages"][0]["message"]
+        """
+        try:
+            outputs = result.get("outputs") or []
+            if not outputs:
+                return None
+            first_outputs = outputs[0].get("outputs") or []
+            if not first_outputs:
+                return None
+            messages = first_outputs[0].get("messages") or []
+            if not messages:
+                return None
+            return messages[0].get("message")
+        except Exception:
+            return None
+
     async def _get_consumer(self) -> AIOKafkaConsumer:
         """Получает или создает асинхронный Kafka consumer"""
         if self._consumer is None:
@@ -186,7 +212,11 @@ class KafkaLangflowConsumer:
                     logger.info(f"Успешно обработано сообщение локальным flow. Результат: {result}")
                 else:
                     result = await self.langflow_client.run_flow(input_data)
-                    logger.info(f"Успешно обработано сообщение через Langflow API. Результат: {result}")
+                    extracted = self._extract_langflow_message(result)
+                    if extracted is not None:
+                        logger.info(f"Langflow API результат: {extracted}")
+                    else:
+                        logger.info(f"Успешно обработано сообщение через Langflow API, но не удалось извлечь message. Ответ: {result}")
                 
                 return True
 
