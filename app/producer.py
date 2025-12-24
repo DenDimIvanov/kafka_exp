@@ -36,8 +36,11 @@ def delivery_report(err: Optional[Exception], msg) -> None:
     if err is not None:
         print(f"Delivery failed for {msg.key()}: {err}")
     else:
+        key_str = msg.key().decode("utf-8") if msg.key() else ""
+        value_str = msg.value().decode("utf-8") if msg.value() else ""
         print(
-            f"Delivered to {msg.topic()} [{msg.partition()}] @ offset {msg.offset()} | message_value={msg.value().decode('utf-8') if msg.value() else ''}"
+            f"Delivered to {msg.topic()} [{msg.partition()}] @ offset {msg.offset()} "
+            f"| key={key_str} | message_value={value_str}"
         )
 
 
@@ -51,14 +54,22 @@ def main() -> None:
     )
 
     killer = GracefulKiller()
+    # Набор ключей: Kafka гарантирует, что одинаковый ключ всегда попадает в одну и ту же партицию
+    keys = ["key-0", "key-1", "key-2"]
     i = 0
 
     print(f"Sending messages to topic '{TOPIC}'. Press Ctrl+C to stop.")
 
     try:
         while not killer.stop:
+            key = keys[i % len(keys)]
             msg = f"message-{i}"
-            producer.produce(TOPIC, value=msg.encode("utf-8"), callback=delivery_report)
+            producer.produce(
+                TOPIC,
+                key=key.encode("utf-8"),
+                value=msg.encode("utf-8"),
+                callback=delivery_report,
+            )
             # poll обрабатывает внутреннюю очередь и колбэки
             producer.poll(0)
             i += 1

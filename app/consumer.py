@@ -186,12 +186,13 @@ class KafkaLangflowConsumer:
             await self._consumer.start()
         return self._consumer
 
-    async def process_message(self, message_value: str) -> bool:
+    async def process_message(self, message_value: str, message_key: Optional[str] = None) -> bool:
         """
         Асинхронно обрабатывает одно сообщение: парсит и вызывает flow
 
         Args:
             message_value: Значение сообщения из Kafka
+            message_key: Ключ сообщения из Kafka (опционально)
 
         Returns:
             True если обработка успешна, False в противном случае
@@ -199,12 +200,14 @@ class KafkaLangflowConsumer:
         # Используем семафор для ограничения количества одновременных запросов
         async with self._semaphore:
             try:
-                # Пытаемся распарсить JSON, если не получается - используем как строку
-                try:
-                    input_data = json.loads(message_value)
-                except json.JSONDecodeError:
-                    # Если не JSON, передаем как текстовое сообщение
-                    input_data = {"message": message_value}
+                # Формируем структурированные данные с key и value
+                kafka_data = {
+                    "key": message_key,
+                    "value": message_value
+                }
+
+                # Преобразуем в JSON-строку для Langflow
+                input_data = {"message": json.dumps(kafka_data, ensure_ascii=False)}
 
                 # Вызываем flow (локальный или через API)
                 if self.use_local_flow and self.local_flow:
@@ -232,12 +235,16 @@ class KafkaLangflowConsumer:
 
         try:
             async for msg in consumer:
+                # Извлекаем key и value
+                message_key = msg.key.decode("utf-8") if msg.key else None
+                message_value = msg.value
+                
                 logger.info(
-                    f"Получено сообщение: {msg.value} "
+                    f"Получено сообщение: key={message_key}, value={message_value} "
                     f"(partition={msg.partition}, offset={msg.offset})"
                 )
-                # Запускаем обработку сообщения в фоне (не блокируя чтение новых сообщений)
-                asyncio.create_task(self.process_message(msg.value))
+                # Передаем key и value вместе
+                asyncio.create_task(self.process_message(message_value, message_key))
         except asyncio.CancelledError:
             logger.info("Остановка consumer...")
         finally:
